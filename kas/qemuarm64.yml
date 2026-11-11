@@ -1,0 +1,19 @@
+header:
+  version: 14
+
+machine: qemuarm64
+distro: nodistro
+target: core-image-minimal
+
+repos:
+  oe-core:
+    url: "https://git.openembedded.org/openembedded-core"
+    branch: "wrynose"
+    commit: "2285da08068a6d1b4a64c9a52d85a58be50e4679"
+    layers:
+      meta:
+  bitbake:
+    url: "https://git.openembedded.org/bitbake"
+    branch: "2.18"
+    commit: "6e260eb6ab1631607ea414d9ff8ede1155faa5d9"
+    layers: {}
