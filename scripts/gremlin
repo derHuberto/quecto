@@ -1,0 +1,46 @@
+#!/bin/bash
+set -eu
+
+MACHINE=qemuarm64
+IMAGE=qemu-gremlin:local
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+REPO_DIR=$(dirname "$SCRIPT_DIR")
+IMAGE_DIR="$REPO_DIR/build/tmp/deploy/images/$MACHINE"
+WORK_DIR="$REPO_DIR/build/gremlin"
+ROOT_FS="$IMAGE_DIR/core-image-minimal-qemuarm64.rootfs.ext4.zst"
+TARGET_ROOT_FS="$WORK_DIR/core-image-minimal-qemuarm64.rootfs.ext4"
+
+[ -d "$IMAGE_DIR" ] || { echo "no deploy dir $IMAGE_DIR" >&2; exit 1; }
+podman image exists "$IMAGE" || { echo "no image $IMAGE" >&2; exit 1; }
+
+QEMU_ARGS=(
+    -device virtio-net-pci,netdev=net0,mac=52:54:00:12:35:02 
+    -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=tcp:127.0.0.1:2323-:23 
+    -object rng-random,filename=/dev/urandom,id=rng0 
+    -device virtio-rng-pci,rng=rng0 
+    -drive id=disk0,file=/work/core-image-minimal-qemuarm64.rootfs.ext4,if=none,format=raw 
+    -device virtio-blk-pci,drive=disk0 
+    -device qemu-xhci 
+    -device usb-tablet -device usb-kbd  
+    -machine virt 
+    -cpu cortex-a57 
+    -smp 4 
+    -m 256 
+    -snapshot 
+    -serial mon:stdio 
+    -serial null 
+    -nographic 
+    -device virtio-gpu-pci 
+    -kernel /images/Image 
+    -append "root=/dev/vda rw mem=256M ip=dhcp console=ttyAMA0 console=hvc0 swiotlb=0"
+)
+
+mkdir -p "$WORK_DIR"
+zstd -d -q -f "$ROOT_FS" -o "$TARGET_ROOT_FS"
+
+exec podman run --rm -it --security-opt label=disable \
+  -v "$IMAGE_DIR:/images:ro" \
+  -v "$WORK_DIR:/work:ro" \
+  "$IMAGE" "${QEMU_ARGS[@]}"
+

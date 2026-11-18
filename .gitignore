@@ -1,3 +1,6 @@
 build/
 oe-core/
 bitbake/
+.kas*
+docs/adr/*
+learning/
